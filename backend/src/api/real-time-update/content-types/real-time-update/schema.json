@@ -1,0 +1,23 @@
+{
+  "collectionName": "real_time_updates",
+  "info": {
+    "singularName": "real-time-update",
+    "pluralName": "real-time-updates",
+    "displayName": "Actualización en tiempo real",
+    "description": "Scrolling text for real-time updates"
+  },
+  "kind": "collectionType",
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "content": {
+      "type": "text",
+      "required": true
+    },
+    "isActive": {
+      "type": "boolean",
+      "default": true
+    }
+  }
+}

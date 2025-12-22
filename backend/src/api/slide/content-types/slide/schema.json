@@ -1,0 +1,38 @@
+{
+  "collectionName": "slides",
+  "info": {
+    "singularName": "slide",
+    "pluralName": "slides",
+    "displayName": "slide",
+    "description": "Carousel slides for the homepage"
+  },
+  "kind": "collectionType",
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "mainText": {
+      "type": "string",
+      "required": true
+    },
+    "secondaryText": {
+      "type": "string"
+    },
+    "description": {
+      "type": "text"
+    },
+    "imageUrl": {
+      "type": "string",
+      "required": true
+    },
+    "ctaLabel": {
+      "type": "string"
+    },
+    "ctaUrl": {
+      "type": "string"
+    },
+    "order": {
+      "type": "integer"
+    }
+  }
+}
