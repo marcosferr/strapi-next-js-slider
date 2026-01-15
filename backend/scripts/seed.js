@@ -317,6 +317,7 @@ async function importSeedData() {
     about: ['find', 'findOne'],
     slide: ['find', 'findOne'],
     'real-time-update': ['find', 'findOne'],
+    message: ['create'],
   });
 
   // Create admin user

@@ -70,6 +70,42 @@ const allowPublicSlideRead = async (strapi: Core.Strapi) => {
   strapi.log.info('Public role granted read access to slides');
 };
 
+const allowPublicMessageCreate = async (strapi: Core.Strapi) => {
+  const publicRole = await strapi.query('plugin::users-permissions.role').findOne({ where: { type: 'public' } });
+  if (!publicRole) {
+    strapi.log.warn('Public role not found; cannot set message permissions');
+    return;
+  }
+
+  const action = 'create';
+  const permissionAction = `api::message.message.${action}`;
+  
+  const existing = await strapi.db.query('plugin::users-permissions.permission').findOne({
+    where: { action: permissionAction, role: publicRole.id },
+  });
+
+  if (existing) {
+    if (!existing.enabled) {
+      await strapi.db.query('plugin::users-permissions.permission').update({
+        where: { id: existing.id },
+        data: { enabled: true },
+      });
+      strapi.log.info('Public role re-enabled creation access to messages');
+    }
+    return;
+  }
+
+  await strapi.db.query('plugin::users-permissions.permission').create({
+    data: {
+      action: permissionAction,
+      role: publicRole.id,
+      enabled: true,
+    },
+  });
+
+  strapi.log.info('Public role granted creation access to messages');
+};
+
 const seedSlides = async (strapi: Core.Strapi) => {
   const existing = await strapi.db.query('api::slide.slide').findMany();
   if (existing.length > 0) {
@@ -115,6 +151,7 @@ export default {
   async bootstrap({ strapi }: { strapi: Core.Strapi }) {
     await ensureAdminAccount(strapi);
     await allowPublicSlideRead(strapi);
+    await allowPublicMessageCreate(strapi);
     await seedSlides(strapi);
   },
 };

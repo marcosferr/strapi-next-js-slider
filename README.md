@@ -9,6 +9,30 @@ Proyecto de prueba de concepto (POC) que integra un backend Strapi v5 con un fro
 - **Base de datos**: PostgreSQL
 - **Contenerización**: Docker y Docker Compose
 
+## Funcionalidades
+
+### Gestión de Contenido
+- Content Types para artículos, autores, categorías, slides y contenido global
+- Componentes compartidos (media, quote, rich-text, SEO, slider)
+- Dynamic zones para composición flexible de contenido
+- API RESTful con permisos públicos configurables
+
+### Formulario de Contacto
+- Página de contacto en `/contact` con formulario protegido por reCAPTCHA v3
+- Validación del lado del servidor con middleware de reCAPTCHA
+- Envío automático de notificaciones por email al recibir mensajes
+- Almacenamiento de mensajes en la base de datos con campos: nombre, email, consulta, fecha de recepción y anotaciones privadas
+- Navegación integrada con enlaces a Inicio y Contacto
+
+### Sistema de Email
+- Integración con proveedor de email Nodemailer
+- Envío automático de emails de notificación para nuevos mensajes de contacto
+- Configurable vía variables de entorno
+
+### Testing
+- Suite de pruebas con Jest para validar funcionalidades críticas
+- Pruebas automatizadas del middleware de reCAPTCHA
+
 ## Requisitos Previos
 
 Antes de comenzar, asegúrate de tener instalados:
@@ -53,11 +77,27 @@ FRONTEND_URL=http://localhost:3000
 # Bootstrap admin (estas variables son utilizadas por el script de seed)
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=StrapiAdmin123!
+
+# reCAPTCHA
+SECRET_BACKEND_RECAPTCHA=<tu-clave-secreta-de-recaptcha>
+
+# Email
+CONTACT_EMAIL=<email-destino-para-notificaciones>
+DEFAULT_FROM_EMAIL=<email-remitente-predeterminado>
+# Configuración SMTP (requerida para el envío de emails)
+SMTP_HOST=<host-smtp>
+SMTP_PORT=<puerto-smtp>
+SMTP_USERNAME=<usuario-smtp>
+SMTP_PASSWORD=<contraseña-smtp>
 ```
 
 > **Nota**: Para generar las `APP_KEYS`, puedes ejecutar: `node -e "console.log(Array(4).fill(0).map(() => Math.random().toString(36).substring(2, 15)).join(','))"`
 
 > **Importante**: Las variables `ADMIN_EMAIL` y `ADMIN_PASSWORD` en el archivo `.env` son utilizadas directamente por el script de seed para crear el usuario administrador. Puedes modificar estos valores según tus necesidades.
+
+> **Configuración de reCAPTCHA**: Necesitas obtener las claves de [Google reCAPTCHA](https://www.google.com/recaptcha/admin). La clave del sitio se usa en el frontend y la clave secreta en el backend.
+
+> **Configuración de Email**: Para el envío de emails, configura las variables SMTP. El proyecto utiliza el proveedor Nodemailer de Strapi.
 
 #### Frontend
 
@@ -65,6 +105,7 @@ Crea el archivo de entorno para el frontend:
 
 ```bash
 echo "NEXT_PUBLIC_API_BASE_URL=http://localhost:1337" > frontend/.env.local
+echo "NEXT_PUBLIC_RECAPTCHA_SITE_KEY=<tu-clave-sitio-de-recaptcha>" >> frontend/.env.local
 ```
 
 ## Levantar el Proyecto por Primera Vez
@@ -158,6 +199,9 @@ npm run start
 # Construir panel de administración
 npm run build
 
+# Ejecutar pruebas
+npm run test
+
 # Importar datos de ejemplo (solo una vez)
 npm run seed:example
 ```
@@ -202,12 +246,20 @@ docker-compose restart
 poc-strapi/
 ├── backend/                 # Backend Strapi
 │   ├── src/api/            # Definiciones de API y content types
+│   │   ├── message/        # API de mensajes de contacto
+│   │   │   ├── content-types/
+│   │   │   ├── controllers/
+│   │   │   ├── middlewares/  # Middleware de reCAPTCHA
+│   │   │   ├── routes/
+│   │   │   └── services/
 │   ├── src/components/     # Componentes compartidos de Strapi
 │   ├── data/               # Datos para seeding
 │   ├── scripts/            # Scripts utilitarios (seed.js)
+│   ├── tests/              # Pruebas con Jest
 │   └── config/             # Configuración de Strapi
 ├── frontend/               # Frontend Next.js
 │   ├── src/app/           # Páginas y layouts de Next.js
+│   │   ├── contact/       # Página de contacto
 │   ├── src/components/    # Componentes React
 │   └── src/types/         # Definiciones de TypeScript
 └── docker-compose.yml     # Configuración de Docker Compose
@@ -216,10 +268,12 @@ poc-strapi/
 ## Notas Importantes
 
 - El backend se ejecuta dentro de un contenedor Docker, mientras que el frontend se ejecuta nativamente con npm
-- El script de seed configura automáticamente los permisos públicos para todos los content types
+- El script de seed configura automáticamente los permisos públicos para todos los content types, incluyendo la creación de mensajes de contacto
 - Los archivos multimedia para el seed se encuentran en `backend/data/uploads/`
 - CORS está configurado para permitir solicitudes desde `FRONTEND_URL` (definido en el .env del backend)
 - El script de seed ahora utiliza las variables de entorno `ADMIN_EMAIL` y `ADMIN_PASSWORD` para crear el usuario administrador
+- El formulario de contacto incluye protección reCAPTCHA v3 y envío automático de notificaciones por email
+- Las pruebas se ejecutan con Jest y requieren que el servidor backend esté corriendo en el puerto 1337
 
 ## Solución de Problemas
 
@@ -241,6 +295,14 @@ poc-strapi/
 4. **El frontend no se conecta al backend**
    - Verifica que `NEXT_PUBLIC_API_BASE_URL` en `frontend/.env.local` sea correcto
    - Asegúrate de que ambos servicios estén corriendo
+
+5. **Error con reCAPTCHA**
+   - Verifica que las claves de reCAPTCHA sean válidas y estén configuradas correctamente
+   - Asegúrate de que `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` y `SECRET_BACKEND_RECAPTCHA` estén definidos
+
+6. **Los emails no se envían**
+   - Configura las variables SMTP en `backend/.env`
+   - Verifica que el proveedor de email esté correctamente configurado en Strapi
 
 ### Reiniciar Todo
 
