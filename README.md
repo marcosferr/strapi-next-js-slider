@@ -80,7 +80,9 @@ ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=StrapiAdmin123!
 
 # ALTCHA (auto-hospedado, no requiere servicios externos)
-ALTCHA_HMAC_KEY=<genera-una-clave-secreta-aleatoria>
+# Genera una clave con: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# Ejemplo (¡NO usar en producción!):
+ALTCHA_HMAC_KEY=a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2
 
 # Email
 CONTACT_EMAIL=<email-destino-para-notificaciones>
@@ -249,7 +251,7 @@ poc-strapi/
 │   │   ├── message/        # API de mensajes de contacto
 │   │   │   ├── content-types/
 │   │   │   ├── controllers/
-│   │   │   ├── middlewares/  # Middleware de Cap
+│   │   │   ├── middlewares/  # Middleware de ALTCHA
 │   │   │   ├── routes/
 │   │   │   └── services/
 │   ├── src/components/     # Componentes compartidos de Strapi
@@ -272,7 +274,7 @@ poc-strapi/
 - Los archivos multimedia para el seed se encuentran en `backend/data/uploads/`
 - CORS está configurado para permitir solicitudes desde `FRONTEND_URL` (definido en el .env del backend)
 - El script de seed ahora utiliza las variables de entorno `ADMIN_EMAIL` y `ADMIN_PASSWORD` para crear el usuario administrador
-- El formulario de contacto incluye protección Cap.js (proof-of-work CAPTCHA) y envío automático de notificaciones por email
+- El formulario de contacto incluye protección ALTCHA (proof-of-work CAPTCHA auto-hospedado) con honeypot y envío automático de notificaciones por email
 - Las pruebas se ejecutan con Jest y requieren que el servidor backend esté corriendo en el puerto 1337
 
 ## Solución de Problemas
@@ -296,10 +298,11 @@ poc-strapi/
    - Verifica que `NEXT_PUBLIC_API_BASE_URL` en `frontend/.env.local` sea correcto
    - Asegúrate de que ambos servicios estén corriendo
 
-5. **Error con Cap.js**
-   - Verifica que el servidor Cap esté corriendo: `docker-compose ps`
-   - Accede al dashboard de Cap en http://localhost:3001 y crea un site key
-   - Asegúrate de que `NEXT_PUBLIC_CAP_SITE_KEY` y `CAP_SECRET_KEY` estén definidos
+5. **Error con ALTCHA**
+   - Verifica que `ALTCHA_HMAC_KEY` esté definida en `backend/.env`
+   - La clave debe tener al menos 32 caracteres para seguridad
+   - El endpoint `/api/altcha/challenge` debe responder con status 200
+   - Revisa la consola del navegador para errores del widget ALTCHA
 
 6. **Los emails no se envían**
    - Configura las variables SMTP en `backend/.env`

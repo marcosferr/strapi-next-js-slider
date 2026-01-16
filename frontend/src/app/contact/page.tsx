@@ -6,6 +6,7 @@ import styles from "./Contact.module.css";
 // Interface for ALTCHA widget element
 interface AltchaWidgetElement extends HTMLElement {
   value: string;
+  reset: () => void;
 }
 
 export default function ContactPage() {
@@ -18,6 +19,8 @@ export default function ContactPage() {
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [altchaVerified, setAltchaVerified] = useState(false);
+  const [altchaPayload, setAltchaPayload] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
   const altchaContainerRef = useRef<HTMLDivElement | null>(null);
   const altchaWidgetRef = useRef<AltchaWidgetElement | null>(null);
 
@@ -26,10 +29,21 @@ export default function ContactPage() {
   // Handle ALTCHA state changes
   const handleStateChange = useCallback((e: Event) => {
     const customEvent = e as CustomEvent<{ state: string; payload?: string }>;
-    if (customEvent.detail?.state === 'verified') {
+    console.log('ALTCHA state change:', customEvent.detail);
+    
+    const state = customEvent.detail?.state;
+    
+    if (state === 'verifying') {
+      // Widget is computing proof-of-work
+    } else if (state === 'verified') {
       setAltchaVerified(true);
-    } else if (customEvent.detail?.state === 'unverified') {
+      // Get payload from event detail
+      const payload = customEvent.detail?.payload || (e.target as AltchaWidgetElement)?.value;
+      console.log('ALTCHA verified, payload:', payload);
+      setAltchaPayload(payload || null);
+    } else if (state === 'unverified' || state === 'error') {
       setAltchaVerified(false);
+      setAltchaPayload(null);
     }
   }, []);
 
@@ -41,11 +55,13 @@ export default function ContactPage() {
     script.type = "module";
     
     script.onload = () => {
-      // Create the ALTCHA widget element after script loads
       if (altchaContainerRef.current && !altchaWidgetRef.current) {
         const widget = document.createElement('altcha-widget') as AltchaWidgetElement;
         widget.setAttribute('challengeurl', challengeUrl);
+        // auto="onload" makes it verify automatically when the page loads
+        widget.setAttribute('auto', 'onload');
         widget.setAttribute('hidefooter', '');
+        widget.setAttribute('hidelogo', '');
         widget.addEventListener('statechange', handleStateChange);
         
         altchaContainerRef.current.appendChild(widget);
@@ -59,9 +75,6 @@ export default function ContactPage() {
       if (altchaWidgetRef.current) {
         altchaWidgetRef.current.removeEventListener('statechange', handleStateChange);
       }
-      if (document.head.contains(script)) {
-        document.head.removeChild(script);
-      }
     };
   }, [challengeUrl, handleStateChange]);
 
@@ -71,17 +84,24 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    // Check honeypot
+    if (formData.website) {
+      console.log('Honeypot filled - blocking submission');
+      return;
+    }
+    
+    // Check if ALTCHA is verified
+    if (!altchaVerified || !altchaPayload) {
+      setStatus("error");
+      setErrorMessage("Por favor espera a que se complete la verificación ALTCHA.");
+      return;
+    }
+    
     setStatus("submitting");
     setErrorMessage("");
-
+    
     try {
-      // Get the ALTCHA payload from the widget
-      const altchaPayload = altchaWidgetRef.current?.value;
-
-      if (!altchaPayload) {
-        throw new Error("Por favor completa la verificación ALTCHA");
-      }
-
       const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:1337";
       const res = await fetch(`${baseUrl}/api/messages`, {
         method: "POST",
@@ -94,9 +114,7 @@ export default function ContactPage() {
             email: formData.email,
             consulta: formData.consulta,
           },
-          // Honeypot field - should be empty for real users
           website: formData.website,
-          // ALTCHA verification payload
           altcha: altchaPayload,
         }),
       });
@@ -109,16 +127,11 @@ export default function ContactPage() {
       setStatus("success");
       setFormData({ nombre: "", email: "", consulta: "", website: "" });
       setAltchaVerified(false);
+      setAltchaPayload(null);
       
       // Reset the ALTCHA widget for a new submission
-      if (altchaWidgetRef.current && altchaContainerRef.current) {
-        altchaContainerRef.current.innerHTML = '';
-        const widget = document.createElement('altcha-widget') as AltchaWidgetElement;
-        widget.setAttribute('challengeurl', challengeUrl);
-        widget.setAttribute('hidefooter', '');
-        widget.addEventListener('statechange', handleStateChange);
-        altchaContainerRef.current.appendChild(widget);
-        altchaWidgetRef.current = widget;
+      if (altchaWidgetRef.current) {
+        altchaWidgetRef.current.reset();
       }
     } catch (error) {
       console.error(error);
@@ -134,7 +147,7 @@ export default function ContactPage() {
   return (
     <div className={styles.container}>
       <h1>Contacto</h1>
-      <form onSubmit={handleSubmit} className={styles.form}>
+      <form ref={formRef} onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.field}>
           <label htmlFor="nombre">Nombre</label>
           <input
@@ -173,7 +186,6 @@ export default function ContactPage() {
           />
         </div>
 
-        {/* Hidden field for additional validation */}
         <div className={styles.hiddenField} aria-hidden="true">
           <label htmlFor="website">Website (leave empty)</label>
           <input
@@ -187,9 +199,9 @@ export default function ContactPage() {
           />
         </div>
 
-        {/* ALTCHA Widget Container */}
+        {/* ALTCHA Widget - Visible with auto-verification */}
         <div className={styles.field}>
-          <div ref={altchaContainerRef} />
+          <div ref={altchaContainerRef} className={styles.altchaContainer} />
         </div>
 
         <button 
@@ -200,8 +212,12 @@ export default function ContactPage() {
           {status === "submitting" ? "Enviando..." : "Enviar Mensaje"}
         </button>
 
-        {status === "success" && <p className={styles.success}>¡Mensaje enviado con éxito!</p>}
-        {status === "error" && <p className={styles.error}>{errorMessage}</p>}
+        {status === "success" && (
+          <p className={styles.success}>¡Mensaje enviado con éxito! Gracias por contactarnos.</p>
+        )}
+        {status === "error" && (
+          <p className={styles.error}>{errorMessage}</p>
+        )}
       </form>
     </div>
   );

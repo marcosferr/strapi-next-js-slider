@@ -83,3 +83,10 @@
   pointer-events: none;
   overflow: hidden;
 }
+
+/* ALTCHA widget container */
+.altchaContainer {
+  display: flex;
+  justify-content: center;
+  margin: 0.5rem 0;
+}

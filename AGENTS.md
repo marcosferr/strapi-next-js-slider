@@ -86,6 +86,9 @@ DATABASE_NAME=strapi
 DATABASE_USERNAME=strapi
 DATABASE_PASSWORD=strapi
 FRONTEND_URL=http://localhost:3000
+# ALTCHA (genera una clave con: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+# Ejemplo (NO usar en producción!):
+ALTCHA_HMAC_KEY=a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2
 ```
 
 ### Frontend (.env.local)

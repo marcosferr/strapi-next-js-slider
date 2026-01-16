@@ -36,28 +36,46 @@ const TARGET_URL = 'http://localhost:3000/contact';
     console.log(`📍 Navigating to ${TARGET_URL}...`);
     await page.goto(TARGET_URL);
 
+    // Check if challenge API is accessible
+    console.log('🔍 Checking ALTCHA challenge API...');
+    const challengeStatus = await page.evaluate(async () => {
+      try {
+        const res = await fetch('http://localhost:1337/api/altcha/challenge');
+        return res.status;
+      } catch (e) {
+        return 'error';
+      }
+    });
+    console.log('Challenge API status:', challengeStatus);
+
+    if (challengeStatus !== 200) {
+      console.log('❌ Challenge API not accessible, aborting...');
+      return;
+    }
+
     // Fill out the form
     console.log('✍️  Filling out form...');
     await page.fill('input[name="nombre"]', 'Playwright Bot');
     await page.fill('input[name="email"]', 'bot@automated-test.com');
     await page.fill('textarea[name="consulta"]', 'This is an automated test using Playwright to generate a real ALTCHA token.');
 
-    // Wait for ALTCHA widget to complete verification
-    console.log('⏳ Waiting for ALTCHA widget to verify...');
-    await page.waitForSelector('altcha-widget[data-state="verified"]', { timeout: 30000 }).catch(() => {
-      console.log('⏳ ALTCHA widget not auto-verified, waiting for manual interaction...');
-    });
+    // Note: ALTCHA widget is now invisible (programmatic verification)
+    // The widget exists but is hidden with display: none
+    // Verification happens automatically when form is submitted
 
     // Setup response listener to intercept the verification
     const responsePromise = page.waitForResponse(response => 
-      response.url().includes('/api/messages') && response.request().method() === 'POST'
+      response.url().includes('/api/messages') && response.request().method() === 'POST',
+      { timeout: 60000 }
     );
 
-    // Click submit
+    // Click submit - this triggers ALTCHA proof-of-work verification
     console.log('🔘 Clicking submit (triggering ALTCHA proof-of-work)...');
     await page.click('button[type="submit"]');
 
-    console.log('⏳ Waiting for API response...');
+    // Wait for verification to complete (button changes to "Verificando...")
+    console.log('⏳ Waiting for ALTCHA verification and API response...');
+    
     const response = await responsePromise;
     const status = response.status();
     const body = await response.json();
