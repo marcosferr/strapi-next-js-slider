@@ -1,0 +1,90 @@
+
+/**
+ * Advanced Clean Bot Attack Simulation using Playwright
+ * 
+ * This script launches a real browser (headless or headed) to simulate
+ * a sophisticated bot that can execute JavaScript and generate valid
+ * ReCAPTCHA tokens.
+ * 
+ * Prerequisites:
+ *  - npm install playwright
+ *  - npx playwright install chromium
+ * 
+ * Usage: 
+ *  node backend/scripts/browser-automation-test.js
+ */
+
+const { chromium } = require('playwright');
+
+const TARGET_URL = 'http://localhost:3000/contact';
+
+(async () => {
+  console.log('🤖 Starting Advanced Bot Attack Simulation...');
+  
+  let browser;
+  try {
+    browser = await chromium.launch({ 
+      headless: false, // Set to true for faster, invisible execution
+      slowMo: 100 // Slow down operations to see what's happening
+    });
+    
+    const context = await browser.newContext({
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    });
+    
+    const page = await context.newPage();
+
+    console.log(`📍 Navigating to ${TARGET_URL}...`);
+    await page.goto(TARGET_URL);
+
+    // Fill out the form
+    console.log('✍️  Filling out form...');
+    await page.fill('input[name="nombre"]', 'Playwright Bot');
+    await page.fill('input[name="email"]', 'bot@automated-test.com');
+    await page.fill('textarea[name="consulta"]', 'This is an automated test using Playwright to generate a real captcha token.');
+
+    // Setup response listener to intercept the verification
+    const responsePromise = page.waitForResponse(response => 
+      response.url().includes('/api/messages') && response.request().method() === 'POST'
+    );
+
+    // Click submit
+    console.log('cx  Clicking submit (triggering ReCAPTCHA)...');
+    await page.click('button[type="submit"]');
+
+    console.log('cw  Waiting for API response...');
+    const response = await responsePromise;
+    const status = response.status();
+    const body = await response.json();
+
+    console.log('---------------------------------------------------');
+    console.log(`📊 Attack Result: HTTP ${status}`);
+    
+    if (status === 200 || status === 201) {
+      console.log('✅ SUCCESS (for the bot): Form submitted successfully.');
+      console.log('⚠️  WARNING: The automated browser successfully bypassed the captcha.');
+      console.log('   This is expected for sophisticated bots unless ReCAPTCHA returns a low score.');
+    } else {
+      console.log('🛡️  BLOCKED: The request was rejected.');
+      console.log('   Reason:', body);
+    }
+    console.log('---------------------------------------------------');
+
+    // Extract the token from the request for inspection
+    const request = response.request();
+    const postData = JSON.parse(request.postData());
+    console.log('🎫 Captured Token (Partial):', postData.recaptchaToken?.substring(0, 20) + '...');
+
+  } catch (error) {
+    if (error.code === 'MODULE_NOT_FOUND') {
+      console.error('\n❌ ERROR: Playwright is not installed.');
+      console.error('Please run: npm install playwright && npx playwright install chromium\n');
+    } else {
+      console.error('❌ An error occurred:', error);
+    }
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+})();
