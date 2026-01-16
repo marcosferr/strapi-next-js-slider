@@ -1,9 +1,8 @@
-
 /**
  * Security Validation / Spam Simulation Script
  * 
  * This script simulates a series of invalid requests to the contact API
- * to verify that the Cap middleware correctly blocks unauthorized attempts.
+ * to verify that the ALTCHA middleware correctly blocks unauthorized attempts.
  * 
  * Usage: node backend/scripts/security-validation.js
  */
@@ -15,24 +14,36 @@ const CONCURRENT_BATCH_SIZE = 5;
 // Scenarios to test
 const SCENARIOS = [
   {
-    name: 'Missing Token',
+    name: 'Missing ALTCHA',
     payload: {
       data: {
         nombre: 'Spam Bot',
         email: 'spam@malicious.com',
-        consulta: 'This request has no token'
+        consulta: 'This request has no ALTCHA verification'
       }
     }
   },
   {
-    name: 'Invalid Token',
+    name: 'Invalid ALTCHA',
     payload: {
       data: {
         nombre: 'Spam Bot',
         email: 'spam@malicious.com',
-        consulta: 'This request has a fake token'
+        consulta: 'This request has a fake ALTCHA payload'
       },
-      capToken: 'INVALID_TOKEN_12345'
+      altcha: 'INVALID_ALTCHA_PAYLOAD'
+    }
+  },
+  {
+    name: 'Honeypot Filled',
+    payload: {
+      data: {
+        nombre: 'Spam Bot',
+        email: 'spam@malicious.com',
+        consulta: 'This request filled the honeypot'
+      },
+      website: 'http://spam-site.com', // Honeypot field - bots fill this
+      altcha: 'INVALID_ALTCHA_PAYLOAD'
     }
   },
   {
@@ -117,7 +128,7 @@ async function runTest() {
       console.log(`   [ID ${r.id}] Scenario: ${r.scenario} -> Status: ${r.status}`);
     });
   } else {
-    console.log('\n✅ SUCCESS: No malicious requests bypassed the Cap verification.');
+    console.log('\n✅ SUCCESS: No malicious requests bypassed the ALTCHA verification.');
   }
 }
 

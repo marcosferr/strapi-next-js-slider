@@ -31,13 +31,19 @@ npm run lint             # ESLint check
 
 ### Docker
 ```bash
-docker-compose up        # Start all services (PostgreSQL, Strapi, Cap)
+docker-compose up        # Start all services (PostgreSQL, Strapi)
 ```
 
-### Cap.js CAPTCHA
-- Cap standalone server runs on port 3001
-- Access dashboard at http://localhost:3001 to create site keys
-- Admin key configured via `CAP_ADMIN_KEY` env var
+### ALTCHA Spam Protection
+- ALTCHA is a self-hosted proof-of-work challenge system (no external services)
+- Challenge endpoint: `/api/altcha/challenge` (public, no auth required)
+- Uses `altcha-lib` npm package for server-side challenge generation and verification
+- HMAC key configured via `ALTCHA_HMAC_KEY` env var
+
+### Honeypot Protection
+- Contact form includes a hidden "website" field as honeypot
+- Bots that fill this field are automatically rejected
+- Real users don't see this field (hidden via CSS)
 
 ## Non-Obvious Patterns
 
@@ -85,15 +91,15 @@ FRONTEND_URL=http://localhost:3000
 ### Frontend (.env.local)
 ```
 NEXT_PUBLIC_API_BASE_URL=http://localhost:1337
-NEXT_PUBLIC_CAP_API_ENDPOINT=http://localhost:3001
-NEXT_PUBLIC_CAP_SITE_KEY=<your-site-key>
 ```
 
-### Cap.js Integration
-- Frontend uses invisible mode to solve Cap challenges programmatically
-- Backend middleware verifies tokens via Cap standalone server's siteverify endpoint
-- Middleware located at `backend/src/api/message/middlewares/cap.ts`
-- Token field name: `capToken` (sent alongside form data)
+### ALTCHA Integration
+- Frontend uses ALTCHA web component widget for proof-of-work verification
+- Backend middleware verifies solutions using `altcha-lib` verifySolution function
+- Middleware located at `backend/src/api/message/middlewares/altcha.ts`
+- Challenge endpoint: `backend/src/api/altcha/controllers/altcha.ts`
+- Payload field name: `altcha` (sent alongside form data)
+- Honeypot field name: `website` (hidden field, should be empty)
 
 ## File Organization
 

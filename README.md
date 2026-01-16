@@ -18,8 +18,9 @@ Proyecto de prueba de concepto (POC) que integra un backend Strapi v5 con un fro
 - API RESTful con permisos públicos configurables
 
 ### Formulario de Contacto
-- Página de contacto en `/contact` con formulario protegido por Cap.js (proof-of-work CAPTCHA)
-- Validación del lado del servidor con middleware de Cap
+- Página de contacto en `/contact` con formulario protegido por ALTCHA (proof-of-work CAPTCHA auto-hospedado)
+- Protección adicional con campo honeypot para detectar bots
+- Validación del lado del servidor con middleware de ALTCHA
 - Envío automático de notificaciones por email al recibir mensajes
 - Almacenamiento de mensajes en la base de datos con campos: nombre, email, consulta, fecha de recepción y anotaciones privadas
 - Navegación integrada con enlaces a Inicio y Contacto
@@ -31,7 +32,7 @@ Proyecto de prueba de concepto (POC) que integra un backend Strapi v5 con un fro
 
 ### Testing
 - Suite de pruebas con Jest para validar funcionalidades críticas
-- Pruebas automatizadas del middleware de Cap
+- Pruebas automatizadas del middleware de ALTCHA y honeypot
 
 ## Requisitos Previos
 
@@ -78,11 +79,8 @@ FRONTEND_URL=http://localhost:3000
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=StrapiAdmin123!
 
-# Cap.js (se obtienen del dashboard de Cap en http://localhost:3001)
-CAP_API_URL=http://cap:3000
-CAP_SITE_KEY=<tu-site-key-de-cap>
-CAP_SECRET_KEY=<tu-secret-key-de-cap>
-CAP_ADMIN_KEY=CapAdminKey12345
+# ALTCHA (auto-hospedado, no requiere servicios externos)
+ALTCHA_HMAC_KEY=<genera-una-clave-secreta-aleatoria>
 
 # Email
 CONTACT_EMAIL=<email-destino-para-notificaciones>
@@ -98,7 +96,7 @@ SMTP_PASSWORD=<contraseña-smtp>
 
 > **Importante**: Las variables `ADMIN_EMAIL` y `ADMIN_PASSWORD` en el archivo `.env` son utilizadas directamente por el script de seed para crear el usuario administrador. Puedes modificar estos valores según tus necesidades.
 
-> **Configuración de Cap.js**: Inicia el servidor Cap con Docker Compose y accede al dashboard en http://localhost:3001 para crear un site key. El site key se usa en el frontend y el secret key en el backend.
+> **Configuración de ALTCHA**: ALTCHA es un sistema de verificación proof-of-work auto-hospedado. Solo necesitas configurar una clave HMAC secreta en `ALTCHA_HMAC_KEY`. Puedes generar una con: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 
 > **Configuración de Email**: Para el envío de emails, configura las variables SMTP. El proyecto utiliza el proveedor Nodemailer de Strapi.
 
@@ -108,8 +106,6 @@ Crea el archivo de entorno para el frontend:
 
 ```bash
 echo "NEXT_PUBLIC_API_BASE_URL=http://localhost:1337" > frontend/.env.local
-echo "NEXT_PUBLIC_CAP_API_ENDPOINT=http://localhost:3001" >> frontend/.env.local
-echo "NEXT_PUBLIC_CAP_SITE_KEY=<tu-site-key-de-cap>" >> frontend/.env.local
 ```
 
 ## Levantar el Proyecto por Primera Vez
@@ -123,7 +119,6 @@ docker-compose up -d
 Este comando:
 - Inicia un contenedor con PostgreSQL
 - Construye e inicia el contenedor del backend Strapi
-- Inicia el servidor Cap.js para verificación de CAPTCHA
 - Configura las redes para que los contenedores puedan comunicarse
 
 ### 2. Esperar a que Strapi esté Listo

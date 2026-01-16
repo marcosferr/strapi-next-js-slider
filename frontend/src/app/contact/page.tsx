@@ -1,16 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import styles from "./Contact.module.css";
 
-// Extend Window interface for Cap.js
-declare global {
-  interface Window {
-    Cap?: new (options: { apiEndpoint: string }) => {
-      solve: () => Promise<{ token: string }>;
-      addEventListener: (event: string, callback: (e: { detail: { progress: number } }) => void) => void;
-    };
-  }
+// Interface for ALTCHA widget element
+interface AltchaWidgetElement extends HTMLElement {
+  value: string;
 }
 
 export default function ContactPage() {
@@ -18,58 +13,73 @@ export default function ContactPage() {
     nombre: "",
     email: "",
     consulta: "",
+    website: "", // Honeypot field
   });
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const [capProgress, setCapProgress] = useState<number | null>(null);
-  const capWidgetRef = useRef<HTMLElement | null>(null);
+  const [altchaVerified, setAltchaVerified] = useState(false);
+  const altchaContainerRef = useRef<HTMLDivElement | null>(null);
+  const altchaWidgetRef = useRef<AltchaWidgetElement | null>(null);
 
-  // Load Cap.js widget script
+  const challengeUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:1337"}/api/altcha/challenge`;
+
+  // Handle ALTCHA state changes
+  const handleStateChange = useCallback((e: Event) => {
+    const customEvent = e as CustomEvent<{ state: string; payload?: string }>;
+    if (customEvent.detail?.state === 'verified') {
+      setAltchaVerified(true);
+    } else if (customEvent.detail?.state === 'unverified') {
+      setAltchaVerified(false);
+    }
+  }, []);
+
+  // Load ALTCHA widget script and create widget element
   useEffect(() => {
     const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/@cap.js/widget@latest";
+    script.src = "https://cdn.jsdelivr.net/npm/altcha/dist/altcha.min.js";
     script.async = true;
+    script.type = "module";
+    
+    script.onload = () => {
+      // Create the ALTCHA widget element after script loads
+      if (altchaContainerRef.current && !altchaWidgetRef.current) {
+        const widget = document.createElement('altcha-widget') as AltchaWidgetElement;
+        widget.setAttribute('challengeurl', challengeUrl);
+        widget.setAttribute('hidefooter', '');
+        widget.addEventListener('statechange', handleStateChange);
+        
+        altchaContainerRef.current.appendChild(widget);
+        altchaWidgetRef.current = widget;
+      }
+    };
+    
     document.head.appendChild(script);
     
     return () => {
-      document.head.removeChild(script);
+      if (altchaWidgetRef.current) {
+        altchaWidgetRef.current.removeEventListener('statechange', handleStateChange);
+      }
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
     };
-  }, []);
+  }, [challengeUrl, handleStateChange]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setStatus("submitting");
     setErrorMessage("");
-    setCapProgress(0);
 
     try {
-      // Get the Cap API endpoint from environment
-      const capEndpoint = process.env.NEXT_PUBLIC_CAP_API_ENDPOINT || "http://localhost:3001";
-      const capSiteKey = process.env.NEXT_PUBLIC_CAP_SITE_KEY || "";
+      // Get the ALTCHA payload from the widget
+      const altchaPayload = altchaWidgetRef.current?.value;
 
-      // Use invisible mode to solve Cap challenge programmatically
-      if (!window.Cap) {
-        throw new Error("Cap.js not loaded");
-      }
-
-      const cap = new window.Cap({
-        apiEndpoint: `${capEndpoint}/${capSiteKey}/`,
-      });
-
-      // Listen for progress updates
-      cap.addEventListener("progress", (event) => {
-        setCapProgress(event.detail.progress);
-      });
-
-      const solution = await cap.solve();
-      const token = solution.token;
-
-      if (!token) {
-        throw new Error("Cap verification failed on client");
+      if (!altchaPayload) {
+        throw new Error("Por favor completa la verificación ALTCHA");
       }
 
       const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:1337";
@@ -79,23 +89,45 @@ export default function ContactPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          data: formData,
-          capToken: token
+          data: {
+            nombre: formData.nombre,
+            email: formData.email,
+            consulta: formData.consulta,
+          },
+          // Honeypot field - should be empty for real users
+          website: formData.website,
+          // ALTCHA verification payload
+          altcha: altchaPayload,
         }),
       });
 
       if (!res.ok) {
-        throw new Error("Error al enviar el mensaje.");
+        const errorData = await res.json();
+        throw new Error(errorData?.error?.message || "Error al enviar el mensaje.");
       }
 
       setStatus("success");
-      setFormData({ nombre: "", email: "", consulta: "" });
-      setCapProgress(null);
+      setFormData({ nombre: "", email: "", consulta: "", website: "" });
+      setAltchaVerified(false);
+      
+      // Reset the ALTCHA widget for a new submission
+      if (altchaWidgetRef.current && altchaContainerRef.current) {
+        altchaContainerRef.current.innerHTML = '';
+        const widget = document.createElement('altcha-widget') as AltchaWidgetElement;
+        widget.setAttribute('challengeurl', challengeUrl);
+        widget.setAttribute('hidefooter', '');
+        widget.addEventListener('statechange', handleStateChange);
+        altchaContainerRef.current.appendChild(widget);
+        altchaWidgetRef.current = widget;
+      }
     } catch (error) {
       console.error(error);
       setStatus("error");
-      setErrorMessage("Hubo un problema al enviar tu mensaje. Por favor intenta de nuevo.");
-      setCapProgress(null);
+      setErrorMessage(
+        error instanceof Error 
+          ? error.message 
+          : "Hubo un problema al enviar tu mensaje. Por favor intenta de nuevo."
+      );
     }
   };
 
@@ -141,12 +173,31 @@ export default function ContactPage() {
           />
         </div>
 
-        <button type="submit" disabled={status === "submitting"} className={styles.button}>
-          {status === "submitting" 
-            ? capProgress !== null 
-              ? `Verificando... ${capProgress}%` 
-              : "Enviando..." 
-            : "Enviar Mensaje"}
+        {/* Hidden field for additional validation */}
+        <div className={styles.hiddenField} aria-hidden="true">
+          <label htmlFor="website">Website (leave empty)</label>
+          <input
+            type="text"
+            id="website"
+            name="website"
+            value={formData.website}
+            onChange={handleChange}
+            tabIndex={-1}
+            autoComplete="off"
+          />
+        </div>
+
+        {/* ALTCHA Widget Container */}
+        <div className={styles.field}>
+          <div ref={altchaContainerRef} />
+        </div>
+
+        <button 
+          type="submit" 
+          disabled={status === "submitting" || !altchaVerified} 
+          className={styles.button}
+        >
+          {status === "submitting" ? "Enviando..." : "Enviar Mensaje"}
         </button>
 
         {status === "success" && <p className={styles.success}>¡Mensaje enviado con éxito!</p>}

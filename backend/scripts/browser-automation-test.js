@@ -1,10 +1,9 @@
-
 /**
  * Advanced Clean Bot Attack Simulation using Playwright
  * 
  * This script launches a real browser (headless or headed) to simulate
  * a sophisticated bot that can execute JavaScript and generate valid
- * Cap.js tokens.
+ * ALTCHA tokens.
  * 
  * Prerequisites:
  *  - npm install playwright
@@ -41,7 +40,13 @@ const TARGET_URL = 'http://localhost:3000/contact';
     console.log('✍️  Filling out form...');
     await page.fill('input[name="nombre"]', 'Playwright Bot');
     await page.fill('input[name="email"]', 'bot@automated-test.com');
-    await page.fill('textarea[name="consulta"]', 'This is an automated test using Playwright to generate a real Cap.js token.');
+    await page.fill('textarea[name="consulta"]', 'This is an automated test using Playwright to generate a real ALTCHA token.');
+
+    // Wait for ALTCHA widget to complete verification
+    console.log('⏳ Waiting for ALTCHA widget to verify...');
+    await page.waitForSelector('altcha-widget[data-state="verified"]', { timeout: 30000 }).catch(() => {
+      console.log('⏳ ALTCHA widget not auto-verified, waiting for manual interaction...');
+    });
 
     // Setup response listener to intercept the verification
     const responsePromise = page.waitForResponse(response => 
@@ -49,7 +54,7 @@ const TARGET_URL = 'http://localhost:3000/contact';
     );
 
     // Click submit
-    console.log('🔘 Clicking submit (triggering Cap.js proof-of-work)...');
+    console.log('🔘 Clicking submit (triggering ALTCHA proof-of-work)...');
     await page.click('button[type="submit"]');
 
     console.log('⏳ Waiting for API response...');
@@ -62,8 +67,8 @@ const TARGET_URL = 'http://localhost:3000/contact';
     
     if (status === 200 || status === 201) {
       console.log('✅ SUCCESS (for the bot): Form submitted successfully.');
-      console.log('⚠️  WARNING: The automated browser successfully solved the Cap.js challenge.');
-      console.log('   This is expected behavior - Cap.js uses proof-of-work which automated browsers can solve.');
+      console.log('⚠️  WARNING: The automated browser successfully solved the ALTCHA challenge.');
+      console.log('   This is expected behavior - ALTCHA uses proof-of-work which automated browsers can solve.');
       console.log('   The protection comes from computational cost, not blocking automated browsers.');
     } else {
       console.log('🛡️  BLOCKED: The request was rejected.');
@@ -74,7 +79,7 @@ const TARGET_URL = 'http://localhost:3000/contact';
     // Extract the token from the request for inspection
     const request = response.request();
     const postData = JSON.parse(request.postData());
-    console.log('🎫 Captured Token (Partial):', postData.capToken?.substring(0, 20) + '...');
+    console.log('🎫 Captured ALTCHA Payload (Partial):', postData.altcha?.substring(0, 30) + '...');
 
   } catch (error) {
     if (error.code === 'MODULE_NOT_FOUND') {

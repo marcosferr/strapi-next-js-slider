@@ -1,0 +1,5 @@
+/**
+ * ALTCHA service
+ */
+
+export default {};
