@@ -3,7 +3,7 @@
  * Security Validation / Spam Simulation Script
  * 
  * This script simulates a series of invalid requests to the contact API
- * to verify that the ReCAPTCHA middleware correctly blocks unauthorized attempts.
+ * to verify that the Cap middleware correctly blocks unauthorized attempts.
  * 
  * Usage: node backend/scripts/security-validation.js
  */
@@ -32,7 +32,7 @@ const SCENARIOS = [
         email: 'spam@malicious.com',
         consulta: 'This request has a fake token'
       },
-      recaptchaToken: 'INVALID_TOKEN_12345'
+      capToken: 'INVALID_TOKEN_12345'
     }
   },
   {
@@ -51,7 +51,7 @@ async function sendRequest(scenario, id) {
     });
     const duration = Math.round(performance.now() - start);
 
-    // We expect 400 Bad Request or 403 Forbidden
+    // We expect 400 Bad Request or 403 Forbidden or 500 Internal Server Error
     const blocked = res.status === 400 || res.status === 403 || res.status === 500;
     
     return {
@@ -75,7 +75,7 @@ async function sendRequest(scenario, id) {
 async function runTest() {
   console.log('🛡️  Starting Security Validation & Spam Simulation');
   console.log(`🎯 Target: ${API_URL}`);
-  console.log(`wm  Attempts: ${TOTAL_ATTEMPTS}`);
+  console.log(`📊 Attempts: ${TOTAL_ATTEMPTS}`);
   console.log('---------------------------------------------------');
 
   const results = [];
@@ -108,7 +108,7 @@ async function runTest() {
   console.log('📊 RESULTS ANALYSIS');
   console.log(`Total Requests: ${TOTAL_ATTEMPTS}`);
   console.log(`✅ Blocked:       ${blockedCount}`);
-  console.log(`zk WARNING:       ${passedCount} (Requests that bypassed security)`);
+  console.log(`⚠️  WARNING:       ${passedCount} (Requests that bypassed security)`);
   console.log(`🛡️  Protection Effectiveness: ${successRate}%`);
 
   if (passedCount > 0) {
@@ -117,7 +117,7 @@ async function runTest() {
       console.log(`   [ID ${r.id}] Scenario: ${r.scenario} -> Status: ${r.status}`);
     });
   } else {
-    console.log('\n✅ SUCCESS: No malicious requests bypassed the ReCAPTCHA verification.');
+    console.log('\n✅ SUCCESS: No malicious requests bypassed the Cap verification.');
   }
 }
 

@@ -4,7 +4,7 @@
  * 
  * This script launches a real browser (headless or headed) to simulate
  * a sophisticated bot that can execute JavaScript and generate valid
- * ReCAPTCHA tokens.
+ * Cap.js tokens.
  * 
  * Prerequisites:
  *  - npm install playwright
@@ -41,7 +41,7 @@ const TARGET_URL = 'http://localhost:3000/contact';
     console.log('✍️  Filling out form...');
     await page.fill('input[name="nombre"]', 'Playwright Bot');
     await page.fill('input[name="email"]', 'bot@automated-test.com');
-    await page.fill('textarea[name="consulta"]', 'This is an automated test using Playwright to generate a real captcha token.');
+    await page.fill('textarea[name="consulta"]', 'This is an automated test using Playwright to generate a real Cap.js token.');
 
     // Setup response listener to intercept the verification
     const responsePromise = page.waitForResponse(response => 
@@ -49,10 +49,10 @@ const TARGET_URL = 'http://localhost:3000/contact';
     );
 
     // Click submit
-    console.log('cx  Clicking submit (triggering ReCAPTCHA)...');
+    console.log('🔘 Clicking submit (triggering Cap.js proof-of-work)...');
     await page.click('button[type="submit"]');
 
-    console.log('cw  Waiting for API response...');
+    console.log('⏳ Waiting for API response...');
     const response = await responsePromise;
     const status = response.status();
     const body = await response.json();
@@ -62,8 +62,9 @@ const TARGET_URL = 'http://localhost:3000/contact';
     
     if (status === 200 || status === 201) {
       console.log('✅ SUCCESS (for the bot): Form submitted successfully.');
-      console.log('⚠️  WARNING: The automated browser successfully bypassed the captcha.');
-      console.log('   This is expected for sophisticated bots unless ReCAPTCHA returns a low score.');
+      console.log('⚠️  WARNING: The automated browser successfully solved the Cap.js challenge.');
+      console.log('   This is expected behavior - Cap.js uses proof-of-work which automated browsers can solve.');
+      console.log('   The protection comes from computational cost, not blocking automated browsers.');
     } else {
       console.log('🛡️  BLOCKED: The request was rejected.');
       console.log('   Reason:', body);
@@ -73,7 +74,7 @@ const TARGET_URL = 'http://localhost:3000/contact';
     // Extract the token from the request for inspection
     const request = response.request();
     const postData = JSON.parse(request.postData());
-    console.log('🎫 Captured Token (Partial):', postData.recaptchaToken?.substring(0, 20) + '...');
+    console.log('🎫 Captured Token (Partial):', postData.capToken?.substring(0, 20) + '...');
 
   } catch (error) {
     if (error.code === 'MODULE_NOT_FOUND') {

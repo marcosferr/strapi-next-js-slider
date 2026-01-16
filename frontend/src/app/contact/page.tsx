@@ -1,8 +1,17 @@
 "use client";
 
-import { useState, useRef } from "react";
-import ReCAPTCHA from "react-google-recaptcha";
+import { useState, useRef, useEffect } from "react";
 import styles from "./Contact.module.css";
+
+// Extend Window interface for Cap.js
+declare global {
+  interface Window {
+    Cap?: new (options: { apiEndpoint: string }) => {
+      solve: () => Promise<{ token: string }>;
+      addEventListener: (event: string, callback: (e: { detail: { progress: number } }) => void) => void;
+    };
+  }
+}
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -12,8 +21,20 @@ export default function ContactPage() {
   });
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  
-  const recaptchaRef = useRef<ReCAPTCHA>(null);
+  const [capProgress, setCapProgress] = useState<number | null>(null);
+  const capWidgetRef = useRef<HTMLElement | null>(null);
+
+  // Load Cap.js widget script
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/@cap.js/widget@latest";
+    script.async = true;
+    document.head.appendChild(script);
+    
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -23,12 +44,32 @@ export default function ContactPage() {
     e.preventDefault();
     setStatus("submitting");
     setErrorMessage("");
+    setCapProgress(0);
 
     try {
-      const token = await recaptchaRef.current?.executeAsync();
-      
+      // Get the Cap API endpoint from environment
+      const capEndpoint = process.env.NEXT_PUBLIC_CAP_API_ENDPOINT || "http://localhost:3001";
+      const capSiteKey = process.env.NEXT_PUBLIC_CAP_SITE_KEY || "";
+
+      // Use invisible mode to solve Cap challenge programmatically
+      if (!window.Cap) {
+        throw new Error("Cap.js not loaded");
+      }
+
+      const cap = new window.Cap({
+        apiEndpoint: `${capEndpoint}/${capSiteKey}/`,
+      });
+
+      // Listen for progress updates
+      cap.addEventListener("progress", (event) => {
+        setCapProgress(event.detail.progress);
+      });
+
+      const solution = await cap.solve();
+      const token = solution.token;
+
       if (!token) {
-         throw new Error("Recaptcha verification failed on client");
+        throw new Error("Cap verification failed on client");
       }
 
       const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:1337";
@@ -39,7 +80,7 @@ export default function ContactPage() {
         },
         body: JSON.stringify({
           data: formData,
-          recaptchaToken: token
+          capToken: token
         }),
       });
 
@@ -47,14 +88,14 @@ export default function ContactPage() {
         throw new Error("Error al enviar el mensaje.");
       }
 
-      recaptchaRef.current?.reset();
       setStatus("success");
       setFormData({ nombre: "", email: "", consulta: "" });
+      setCapProgress(null);
     } catch (error) {
       console.error(error);
       setStatus("error");
       setErrorMessage("Hubo un problema al enviar tu mensaje. Por favor intenta de nuevo.");
-      recaptchaRef.current?.reset();
+      setCapProgress(null);
     }
   };
 
@@ -62,11 +103,6 @@ export default function ContactPage() {
     <div className={styles.container}>
       <h1>Contacto</h1>
       <form onSubmit={handleSubmit} className={styles.form}>
-        <ReCAPTCHA
-            ref={recaptchaRef}
-            size="invisible"
-            sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || "6Lex0UssAAAAAEBrD1rgcdoMdE7Ka6xArhNqaWRl"}
-        />
         <div className={styles.field}>
           <label htmlFor="nombre">Nombre</label>
           <input
@@ -106,7 +142,11 @@ export default function ContactPage() {
         </div>
 
         <button type="submit" disabled={status === "submitting"} className={styles.button}>
-          {status === "submitting" ? "Enviando..." : "Enviar Mensaje"}
+          {status === "submitting" 
+            ? capProgress !== null 
+              ? `Verificando... ${capProgress}%` 
+              : "Enviando..." 
+            : "Enviar Mensaje"}
         </button>
 
         {status === "success" && <p className={styles.success}>¡Mensaje enviado con éxito!</p>}

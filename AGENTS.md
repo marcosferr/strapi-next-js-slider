@@ -31,8 +31,13 @@ npm run lint             # ESLint check
 
 ### Docker
 ```bash
-docker-compose up        # Start both services with PostgreSQL
+docker-compose up        # Start all services (PostgreSQL, Strapi, Cap)
 ```
+
+### Cap.js CAPTCHA
+- Cap standalone server runs on port 3001
+- Access dashboard at http://localhost:3001 to create site keys
+- Admin key configured via `CAP_ADMIN_KEY` env var
 
 ## Non-Obvious Patterns
 
@@ -80,7 +85,15 @@ FRONTEND_URL=http://localhost:3000
 ### Frontend (.env.local)
 ```
 NEXT_PUBLIC_API_BASE_URL=http://localhost:1337
+NEXT_PUBLIC_CAP_API_ENDPOINT=http://localhost:3001
+NEXT_PUBLIC_CAP_SITE_KEY=<your-site-key>
 ```
+
+### Cap.js Integration
+- Frontend uses invisible mode to solve Cap challenges programmatically
+- Backend middleware verifies tokens via Cap standalone server's siteverify endpoint
+- Middleware located at `backend/src/api/message/middlewares/cap.ts`
+- Token field name: `capToken` (sent alongside form data)
 
 ## File Organization
 

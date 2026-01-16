@@ -18,8 +18,8 @@ Proyecto de prueba de concepto (POC) que integra un backend Strapi v5 con un fro
 - API RESTful con permisos públicos configurables
 
 ### Formulario de Contacto
-- Página de contacto en `/contact` con formulario protegido por reCAPTCHA v3
-- Validación del lado del servidor con middleware de reCAPTCHA
+- Página de contacto en `/contact` con formulario protegido por Cap.js (proof-of-work CAPTCHA)
+- Validación del lado del servidor con middleware de Cap
 - Envío automático de notificaciones por email al recibir mensajes
 - Almacenamiento de mensajes en la base de datos con campos: nombre, email, consulta, fecha de recepción y anotaciones privadas
 - Navegación integrada con enlaces a Inicio y Contacto
@@ -31,7 +31,7 @@ Proyecto de prueba de concepto (POC) que integra un backend Strapi v5 con un fro
 
 ### Testing
 - Suite de pruebas con Jest para validar funcionalidades críticas
-- Pruebas automatizadas del middleware de reCAPTCHA
+- Pruebas automatizadas del middleware de Cap
 
 ## Requisitos Previos
 
@@ -78,8 +78,11 @@ FRONTEND_URL=http://localhost:3000
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=StrapiAdmin123!
 
-# reCAPTCHA
-SECRET_BACKEND_RECAPTCHA=<tu-clave-secreta-de-recaptcha>
+# Cap.js (se obtienen del dashboard de Cap en http://localhost:3001)
+CAP_API_URL=http://cap:3000
+CAP_SITE_KEY=<tu-site-key-de-cap>
+CAP_SECRET_KEY=<tu-secret-key-de-cap>
+CAP_ADMIN_KEY=CapAdminKey12345
 
 # Email
 CONTACT_EMAIL=<email-destino-para-notificaciones>
@@ -95,7 +98,7 @@ SMTP_PASSWORD=<contraseña-smtp>
 
 > **Importante**: Las variables `ADMIN_EMAIL` y `ADMIN_PASSWORD` en el archivo `.env` son utilizadas directamente por el script de seed para crear el usuario administrador. Puedes modificar estos valores según tus necesidades.
 
-> **Configuración de reCAPTCHA**: Necesitas obtener las claves de [Google reCAPTCHA](https://www.google.com/recaptcha/admin). La clave del sitio se usa en el frontend y la clave secreta en el backend.
+> **Configuración de Cap.js**: Inicia el servidor Cap con Docker Compose y accede al dashboard en http://localhost:3001 para crear un site key. El site key se usa en el frontend y el secret key en el backend.
 
 > **Configuración de Email**: Para el envío de emails, configura las variables SMTP. El proyecto utiliza el proveedor Nodemailer de Strapi.
 
@@ -105,7 +108,8 @@ Crea el archivo de entorno para el frontend:
 
 ```bash
 echo "NEXT_PUBLIC_API_BASE_URL=http://localhost:1337" > frontend/.env.local
-echo "NEXT_PUBLIC_RECAPTCHA_SITE_KEY=<tu-clave-sitio-de-recaptcha>" >> frontend/.env.local
+echo "NEXT_PUBLIC_CAP_API_ENDPOINT=http://localhost:3001" >> frontend/.env.local
+echo "NEXT_PUBLIC_CAP_SITE_KEY=<tu-site-key-de-cap>" >> frontend/.env.local
 ```
 
 ## Levantar el Proyecto por Primera Vez
@@ -119,6 +123,7 @@ docker-compose up -d
 Este comando:
 - Inicia un contenedor con PostgreSQL
 - Construye e inicia el contenedor del backend Strapi
+- Inicia el servidor Cap.js para verificación de CAPTCHA
 - Configura las redes para que los contenedores puedan comunicarse
 
 ### 2. Esperar a que Strapi esté Listo
@@ -249,7 +254,7 @@ poc-strapi/
 │   │   ├── message/        # API de mensajes de contacto
 │   │   │   ├── content-types/
 │   │   │   ├── controllers/
-│   │   │   ├── middlewares/  # Middleware de reCAPTCHA
+│   │   │   ├── middlewares/  # Middleware de Cap
 │   │   │   ├── routes/
 │   │   │   └── services/
 │   ├── src/components/     # Componentes compartidos de Strapi
@@ -272,7 +277,7 @@ poc-strapi/
 - Los archivos multimedia para el seed se encuentran en `backend/data/uploads/`
 - CORS está configurado para permitir solicitudes desde `FRONTEND_URL` (definido en el .env del backend)
 - El script de seed ahora utiliza las variables de entorno `ADMIN_EMAIL` y `ADMIN_PASSWORD` para crear el usuario administrador
-- El formulario de contacto incluye protección reCAPTCHA v3 y envío automático de notificaciones por email
+- El formulario de contacto incluye protección Cap.js (proof-of-work CAPTCHA) y envío automático de notificaciones por email
 - Las pruebas se ejecutan con Jest y requieren que el servidor backend esté corriendo en el puerto 1337
 
 ## Solución de Problemas
@@ -296,9 +301,10 @@ poc-strapi/
    - Verifica que `NEXT_PUBLIC_API_BASE_URL` en `frontend/.env.local` sea correcto
    - Asegúrate de que ambos servicios estén corriendo
 
-5. **Error con reCAPTCHA**
-   - Verifica que las claves de reCAPTCHA sean válidas y estén configuradas correctamente
-   - Asegúrate de que `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` y `SECRET_BACKEND_RECAPTCHA` estén definidos
+5. **Error con Cap.js**
+   - Verifica que el servidor Cap esté corriendo: `docker-compose ps`
+   - Accede al dashboard de Cap en http://localhost:3001 y crea un site key
+   - Asegúrate de que `NEXT_PUBLIC_CAP_SITE_KEY` y `CAP_SECRET_KEY` estén definidos
 
 6. **Los emails no se envían**
    - Configura las variables SMTP en `backend/.env`
